@@ -12,29 +12,28 @@ module Sunspot
             :include => self.sunspot_options[:include],
             :start => opts.delete(:first_id) || 0
           }.merge(opts)
-          
+
           find_in_batch_options = {
             :batch_size => options[:batch_size],
             :start => options[:start]
           }
-          
+
           exec_processor_size = options[:exec_processor_size]
           progress_lambda = lambda { |item, _, _|
             if options[:progress_bar]
               options[:progress_bar].increment!(item.size)
             end
           }
-          
+
           if options[:batch_size]
             batch_counter = 0
             self.includes(options[:include]).find_in_batches(find_in_batch_options) do |records|
               ::ActiveRecord::Base.establish_connection
               ::Parallel.each(records.in_groups(exec_processor_size),
-                            in_processes: exec_processor_size,
-                            finish: progress_lambda) do |batch|
+                              finish: progress_lambda) do |batch|
                 ::ActiveRecord::Base.establish_connection
                 solr_benchmark(batch.size, batch_counter += 1) do
-                  Sunspot.index(batch.select { |r| r.indexable? })
+                  Sunspot.index(batch.compact.select { |r| r.indexable? })
                   Sunspot.commit if options[:batch_commit]
                 end
               end
