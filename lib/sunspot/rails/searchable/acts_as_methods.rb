@@ -20,7 +20,11 @@ module Sunspot
           exec_processor_size = options[:exec_processor_size]
           progress_lambda = lambda { |item, _, _|
             if options[:progress_bar]
-              options[:progress_bar].increment!(item.size)
+              begin
+                options[:progress_bar].increment!(item.size)
+              rescue => e
+                $stderr.puts "Error in progress bar: #{e.message}, continuing..."
+              end
             end
           }
 
