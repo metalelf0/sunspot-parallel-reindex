@@ -4,18 +4,17 @@ module Sunspot
   module Rails
     module Searchable
       module ActsAsMethods
-        def solr_index_parallel(opts={})
-
+        def solr_index_parallel(opts = {})
           options = {
-            :batch_size => Sunspot.config.indexing.default_batch_size,
-            :batch_commit => true,
-            :include => self.sunspot_options[:include],
-            :start => opts.delete(:first_id) || 0
+            batch_size: Sunspot.config.indexing.default_batch_size,
+            batch_commit: true,
+            include: self.sunspot_options[:include],
+            start: opts.delete(:first_id) || 0
           }.merge(opts)
 
           find_in_batch_options = {
-            :batch_size => options[:batch_size],
-            :start => options[:start]
+            batch_size: options[:batch_size],
+            start: options[:start]
           }
 
           exec_processor_size = options[:exec_processor_size]
@@ -30,8 +29,9 @@ module Sunspot
             self.includes(options[:include]).find_in_batches(find_in_batch_options) do |records|
               ::ActiveRecord::Base.establish_connection
               ::Parallel.each(records.in_groups(exec_processor_size),
+                              in_processes: exec_processor_size,
                               finish: progress_lambda) do |batch|
-                ::ActiveRecord::Base.establish_connection
+                @reconnected ||= ActiveRecord::Base.connection.reconnect! || true
                 solr_benchmark(batch.size, batch_counter += 1) do
                   Sunspot.index(batch.compact.select { |r| r.indexable? })
                   Sunspot.commit if options[:batch_commit]
@@ -39,7 +39,7 @@ module Sunspot
               end
             end
           else
-            records = all(:include => options[:include]).select { |model| model.indexable? }
+            records = all(include: options[:include]).select { |model| model.indexable? }
             Sunspot.index!(records)
           end
 
