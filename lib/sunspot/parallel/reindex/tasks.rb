@@ -4,7 +4,7 @@ namespace :sunspot do
     desc 'Reindex models in parallel'
     task :parallel, ARGNAMES => :environment do |_t, args|
       with_session(Sunspot::SessionProxy::Retry5xxSessionProxy.new(Sunspot.session)) do
-        reindex_options = { batch_commit: false,
+        reindex_options = { batch_commit: true,
                             exec_processor_size: Parallel.processor_count,
                             batch_size: 1000 }
 
